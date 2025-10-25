@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+    <meta property="og:title" content="Azure Lane KAN-SEN Skills" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://example.com/" />
+    <meta property="og:image" content="https://example.com/thumbnail.jpg" />
+    <meta property="og:description" content="Azure Lane の KAN-SEN スキル情報を検索するためのサイトです。" />
+    <meta property="og:site_name" content="Azure Lane KAN-SEN Skills" />
+    <meta property="og:locale" content="ja_JP" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="@nerimacov" />
+    -->
+
+    <title>Azure Lane KAN-SEN Skills</title>
+
+    <!-- Milligram -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lokijs/1.5.12/lokijs.min.js"></script>
+    <script src="./app.js" defer></script>
+
+    <style>
+      img.thumnail {
+        width: 56px;
+        height: 56px;
+        max-width: none;
+      }
+      .ship_banner {
+        background-color: #eeeeee;
+      }
+      div.button-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="float-right">
+        <input type="hidden" id="langSelect" value="ja" />
+
+        <!-- select id="langSelect" style="margin-top: 1em">
+          <option value="ja" default>JP</option>
+          <option value="en">EN</option>
+        </select -->
+      </div>
+      <h1>KAN-SEN Skills<a href="rmk.html">*</a></h1>
+
+      <!-- 検索条件 -->
+      <div id="conditions"></div>
+
+      <!-- ボタンを追加 -->
+      <div class="button-container">
+        <button id="queryButton">Search</button>
+        <button id="clearButton" class="button-outline">Clear</button>
+        (<span id="hitNum"></span> /<span id="listNum"></span>)
+      </div>
+
+      <hr />
+
+      <!-- クエリ結果を表示するエリア -->
+      <div id="result"></div>
+    </div>
+  </body>
+  <footer class="float-right" style="padding-right: 2em">
+    <a href="rmk.html">サイト内のデータについて</a>
+  </footer>
+</html>
