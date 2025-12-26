@@ -1,1 +1,348 @@
-const db=new loki("resources.db"),refUrl="https://azurlane.wikiru.jp/";function initializeLang(){const langParam=new URLSearchParams(window.location.search).get("lang"),langSelect=document.getElementById("langSelect");!langParam||"ja"!==langParam&&"en"!==langParam||(langSelect.value=langParam)}function initializeCheckboxes(container,data,color,dataName){const lang=document.getElementById("langSelect").value;data.forEach(line=>{const label=document.createElement("label");label.style.display="inline-block",label.style.marginRight="10px",label.style.color=color;const checkbox=document.createElement("input");checkbox.type="checkbox",checkbox.value=line.id,checkbox.name=dataName,checkbox.id=dataName+`-${line.id}`,label.appendChild(checkbox),label.appendChild(document.createTextNode(` ${line["name_"+lang]}`)),container.appendChild(label)}),container.appendChild(document.createTextNode(" / "))}function initializeCollaborations(container,nations){const lang=document.getElementById("langSelect").value;let html=`\n  <strong>${"ja"==lang?"コラボ":"Collabolations"}</strong>\n  <select id="collaboration_nation_id" style="display: inline-block; width: 120px;">\n    <option value="" default></option>\n  `;nations.forEach(nation=>{html+=`<option value="${nation.id}">${nation["name_"+lang]}</option>`}),html+="</select> / ",container.innerHTML+=html}function initializeKeywords(container,keywords){const lang=document.getElementById("langSelect").value;let html=`\n  <strong>${"ja"==lang?"キーワード":"Keywords"}</strong>\n  <select id="keyword_id" style="display: inline-block; width: 120px;">\n    <option value="" default></option>\n  `;keywords.forEach(keyword=>{html+=`<option value="${keyword.id}">${keyword["name_"+lang]}</option>`}),html+="</select> / ",container.innerHTML+=html}function initializeYear(container){let html=`\n  <strong>${"ja"==document.getElementById("langSelect").value?"実装年":"Implemented at"}</strong>\n  <select id="implementedAtEq" style="display: inline-block; width: 60px;">\n    <option value="=">=</option>\n    <option value=">=">&gt;=</option>\n    <option value="<=">&lt;=</option>\n  </select>\n  <select id="implementedAt" style="display: inline-block; width: 100px;">\n  `;["","2025","2024","2023","2022","2021","2020","2019","2018","2017"].forEach(year=>{html+=`<option value="${year}">${year}</option>`}),html+="</select>",container.innerHTML+=html}function initializeConditions(battleLines,hullClasses,nations,rarities,keywords){const container=document.getElementById("conditions");initializeCheckboxes(container,nations.filter(n=>0===n.collaboration),"#0066cc","nation"),initializeCollaborations(container,nations.filter(n=>1===n.collaboration)),initializeCheckboxes(container,battleLines,"#cc6633","battleLine"),initializeCheckboxes(container,hullClasses,"#990066","hullClass"),initializeCheckboxes(container,rarities,"#119900","rarity"),initializeCheckboxes(container,[{id:1,name_ja:"改造",name_en:"Retrofitted"}],"#555599","retrofitted"),initializeKeywords(container,keywords),initializeYear(container)}function highlightenKeyword(str,keyword){if(!keyword||""===keyword.trim())return str;const regex=new RegExp(`(${keyword})`,"gi");return str.replace(regex,'<span style="background-color: yellow;">$1</span>')}function getRarityHtml(rarityName){return`<span style="margin-right: 5px; padding:0px 5px; color: black; background-color:${{N:"#e6e6e6",R:"#00ccff",SR:"#cc99ff",SSR:"#ffcc66",PR:"#ffcc66",DR:"#ffcc66",UR:"#33cc99"}[rarityName]};"><strong>${rarityName}</strong></span>`}function displayResult(kansens,hullClasses,nations,rarities,keyword){const lang=document.getElementById("langSelect").value,retrofittedTitle="ja"==lang?"改造":"Retrofitted",resultDiv=document.getElementById("result"),hitNumSpan=document.getElementById("hitNum");0===kansens.length?(resultDiv.innerHTML="",hitNumSpan.innerHTML=0):(html="",kansens.forEach((kansen,index)=>{hullClassName=hullClasses.findOne({id:{$eq:kansen.hull_class_id}})["name_"+lang],rarityName=rarities.findOne({id:{$eq:kansen.rarity_id}})["name_"+lang],nationName=nations.findOne({id:{$eq:kansen.nation_id}})["name_"+lang],table="<table><tbody>",table+='<tr class="ship_banner">',table+='<td style="padding-left: 1em;">',table+=getRarityHtml(rarityName),table+=`<strong><a href="${refUrl}?${kansen.name_ja}" target="_blank">`,table+=`${kansen["name_"+lang]}`,kansen.name_ruby&&(table+=`(${kansen.name_ruby})`),table+="</a></strong>",table+=` (${nationName}, ${hullClassName}, ${kansen.implemented_at}`,kansen.event_name&&(table+=`, <a href="${refUrl}?${kansen.event_url}" target="_blank">${kansen.event_name}</a>`),kansen.retrofitted_at&&(table+=`, ${retrofittedTitle}: ${kansen.retrofitted_at}`),table+=")",table+="</td></tr>",kansen.skills.forEach(skill=>{skillName=highlightenKeyword(skill["name_"+lang],keyword),skillRmk=highlightenKeyword(skill["rmk_"+lang],keyword),table+="<tr>",table+=`<td style="padding-left: 1em;"><strong>${skillName}</strong> <br />`,table+=`${skillRmk}</td>`,table+="</tr>"}),table+="</tbody></table>",html+=`${table}<hr class="ship_divider"/>`}),resultDiv.innerHTML=html,hitNumSpan.innerHTML=kansens.length)}function filterkansens(battleLines,hullClasses,nations,rarities,keywords,kansens){const lang=document.getElementById("langSelect").value;let selectedBattleLines=Array.from(document.querySelectorAll('input[name="battleLine"]:checked')).map(checkbox=>parseInt(checkbox.value));const hullClassesFromBattleLines=hullClasses.find({battle_line_id:{$in:selectedBattleLines}}).map(hullClass=>hullClass.id),selectedHullClasses=Array.from(document.querySelectorAll('input[name="hullClass"]:checked')).map(checkbox=>parseInt(checkbox.value)),hullClassIds=Array.from(new Set([...hullClassesFromBattleLines,...selectedHullClasses]));let selectedNations=Array.from(document.querySelectorAll('input[name="nation"]:checked')).map(checkbox=>parseInt(checkbox.value));const collaboration_nation_id=document.getElementById("collaboration_nation_id").value;""!=collaboration_nation_id&&selectedNations.push(parseInt(collaboration_nation_id));let selectedRarities=Array.from(document.querySelectorAll('input[name="rarity"]:checked')).map(checkbox=>parseInt(checkbox.value));const implementedAt=document.getElementById("implementedAt").value,implementedAtEq=document.getElementById("implementedAtEq").value,keyword_id=document.getElementById("keyword_id").value;let keyword="";const retrofitted=Array.from(document.querySelectorAll('input[name="retrofitted"]:checked')).map(checkbox=>parseInt(checkbox.value)),conditions={};hullClassIds.length>0&&(conditions.hull_class_id={$in:hullClassIds}),selectedNations.length>0&&(conditions.nation_id={$in:selectedNations}),selectedRarities.length>0&&(conditions.rarity_id={$in:selectedRarities}),""!=implementedAt&&("="==implementedAtEq?conditions.implemented_at={$between:[`${implementedAt}/01/01`,`${implementedAt}/12/31`]}:">="==implementedAtEq?conditions.implemented_at={$gte:`${implementedAt}/01/01`}:"<="==implementedAtEq&&(conditions.implemented_at={$lte:`${implementedAt}/12/31`})),""!=keyword_id&&(keyword=keywords.findOne({id:keyword_id})["name_"+lang],conditions.keyword_ids={$contains:keyword_id}),retrofitted.length>0&&(conditions.retrofitted_at={$exists:!0});displayResult(kansens.chain().find(conditions).compoundsort([["nation_id",!1],["rarity_id",!0],["hull_class_id",!1],["implemented_at",!0]]).data(),hullClasses,nations,rarities,keyword)}Promise.all([fetch("./resources.json").then(response=>response.json()),fetch("./kansens.json").then(response=>response.json())]).then(([resources,kansensDat])=>{const battleLines=db.addCollection("battle_lines");battleLines.insert(resources.battle_lines);const hullClasses=db.addCollection("hull_classes");hullClasses.insert(resources.hull_classes);const nations=db.addCollection("nations");nations.insert(resources.nations);const rarities=db.addCollection("rarities");rarities.insert(resources.rarities);const keywords=db.addCollection("keywords");keywords.insert(resources.keywords);const kansens=db.addCollection("kansens");kansens.insert(kansensDat),initializeLang();const fnctInitializeConditions=()=>{container=document.getElementById("conditions"),container.innerHTML="",initializeConditions(battleLines.find(),hullClasses.find(),nations.find(),rarities.find(),keywords.find())};fnctInitializeConditions();document.getElementById("listNum").innerHTML=kansens.find().length,document.getElementById("langSelect").addEventListener("change",event=>{fnctInitializeConditions(),displayResult([])}),document.getElementById("queryButton").addEventListener("click",()=>{filterkansens(battleLines,hullClasses,nations,rarities,keywords,kansens)}),document.getElementById("clearButton").addEventListener("click",()=>{fnctInitializeConditions(),displayResult([])})}).catch(error=>{console.error("Error loading JSON data:",error)});
+// LokiJSのデータベースを作成
+const db = new loki("resources.db");
+
+const refUrl = "https://azurlane.wikiru.jp/";
+
+function initializeLang() {
+  const params = new URLSearchParams(window.location.search);
+  const langParam = params.get("lang");
+
+  // langSelectの初期値を設定
+  const langSelect = document.getElementById("langSelect");
+  if (langParam && (langParam === "ja" || langParam === "en")) {
+    langSelect.value = langParam;
+  }
+}
+
+function initializeCheckboxes(container, data, color, dataName) {
+  const lang = document.getElementById("langSelect").value;
+
+  data.forEach((line) => {
+    const label = document.createElement("label");
+    label.style.display = "inline-block";
+    label.style.marginRight = "10px";
+    label.style.color = color;
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = line.id;
+    checkbox.name = dataName;
+    checkbox.id = dataName + `-${line.id}`;
+
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(` ${line["name_" + lang]}`));
+    container.appendChild(label);
+  });
+  container.appendChild(document.createTextNode(` / `));
+}
+
+function initializeCollaborations(container, nations) {
+  const lang = document.getElementById("langSelect").value;
+  const title = lang == "ja" ? "コラボ" : "Collabolations";
+
+  let html = `
+  <strong>${title}</strong>
+  <select id="collaboration_nation_id" style="display: inline-block; width: 120px;">
+    <option value="" default></option>
+  `;
+  nations.forEach((nation) => {
+    html += `<option value="${nation.id}">${nation["name_" + lang]}</option>`;
+  });
+  html += `</select> / `;
+
+  container.innerHTML += html;
+}
+
+function initializeKeywords(container, keywords) {
+  const lang = document.getElementById("langSelect").value;
+  const title = lang == "ja" ? "キーワード" : "Keywords";
+
+  let html = `
+  <strong>${title}</strong>
+  <select id="keyword_id" style="display: inline-block; width: 120px;">
+    <option value="" default></option>
+  `;
+  keywords.forEach((keyword) => {
+    html += `<option value="${keyword.id}">${keyword["name_" + lang]}</option>`;
+  });
+  html += `</select> / `;
+
+  container.innerHTML += html;
+}
+
+function initializeYear(container) {
+  const lang = document.getElementById("langSelect").value;
+  const title = lang == "ja" ? "実装年" : "Implemented at";
+  let html = `
+  <strong>${title}</strong>
+  <select id="implementedAtEq" style="display: inline-block; width: 60px;">
+    <option value="=">=</option>
+    <option value=">=">&gt;=</option>
+    <option value="<=">&lt;=</option>
+  </select>
+  <select id="implementedAt" style="display: inline-block; width: 100px;">
+  `;
+  const years = ["", "2025", "2024", "2023", "2022", "2021", "2020", "2019", "2018", "2017"];
+  years.forEach((year) => {
+    html += `<option value="${year}">${year}</option>`;
+  });
+  html += `</select>`;
+
+  container.innerHTML += html;
+}
+
+function initializeConditions(battleLines, hullClasses, nations, rarities, keywords) {
+  const container = document.getElementById("conditions");
+
+  initializeCheckboxes(container, nations.filter((n) => n.collaboration === 0), "#0066cc", "nation");
+  initializeCollaborations(container, nations.filter((n) => n.collaboration === 1));
+
+  initializeCheckboxes(container, battleLines, "#cc6633", "battleLine");
+  initializeCheckboxes(container, hullClasses, "#990066", "hullClass");
+  initializeCheckboxes(container, rarities, "#119900", "rarity");
+  initializeCheckboxes(container, [{
+    id: 1,
+    name_ja: "改造",
+    name_en: "Retrofitted",
+  }], "#555599", "retrofitted");
+
+  initializeKeywords(container, keywords);
+  initializeYear(container);
+}
+
+function highlightenKeyword(str, keyword) {
+  if (!keyword || keyword.trim() === "") {
+    return str; // キーワードが空の場合はそのまま返す
+  }
+
+  // キーワードを含む場合、<span> で囲む
+  const regex = new RegExp(`(${keyword})`, "gi"); // 大文字小文字を無視して検索
+  return str.replace(regex, '<span style="background-color: yellow;">$1</span>');
+}
+
+function getRarityHtml(rarityName) {
+  const colors = {
+    "N": "#e6e6e6",
+    "R": "#00ccff",
+    "SR": "#cc99ff",
+    "SSR": "#ffcc66",
+    "PR": "#ffcc66",
+    "DR": "#ffcc66",
+    "UR": "#33cc99",
+  };
+  
+  return `<span style="margin-right: 5px; padding:0px 5px; color: black; background-color:${colors[rarityName]};"><strong>${rarityName}</strong></span>`;
+}
+
+function displayResult(kansens, hullClasses, nations, rarities, keyword) {
+  const lang = document.getElementById("langSelect").value;
+
+  const retrofittedTitle = lang == "ja" ? "改造" : "Retrofitted";
+
+  const resultDiv = document.getElementById("result");
+  const hitNumSpan = document.getElementById("hitNum");
+
+  if (kansens.length === 0) {
+    resultDiv.innerHTML = "";
+    hitNumSpan.innerHTML = 0;
+  } else {
+    html = "";
+
+    kansens.forEach((kansen, index) => {
+      hullClassName = hullClasses.findOne({ id: { $eq: kansen.hull_class_id } })["name_" + lang];
+      rarityName = rarities.findOne({ id: { $eq: kansen.rarity_id } })["name_" + lang];
+      nationName = nations.findOne({ id: { $eq: kansen.nation_id } })["name_" + lang];
+
+      table = `<table><tbody>`;
+      table += `<tr class="ship_banner">`;
+      table += `<td style="padding-left: 1em;">`;
+      table += getRarityHtml(rarityName);
+      table += `<strong><a href="${refUrl}?${kansen.name_ja}" target="_blank">`;
+      table += `${kansen["name_" + lang]}`;
+      if (kansen.name_ruby) {
+        table += `(${kansen.name_ruby})`;
+      }
+      table += `</a></strong>`;
+      table += ` (${nationName}, ${hullClassName}, ${kansen.implemented_at}`;
+
+      if (kansen.event_name) {
+        table += `, <a href="${refUrl}?${kansen.event_url}" target="_blank">${kansen.event_name}</a>`;
+      }
+
+      if (kansen.retrofitted_at) {
+        table += `, ${retrofittedTitle}: ${kansen.retrofitted_at}`;
+      }
+
+      table += `)`;
+      table += "</td></tr>";
+
+      kansen.skills.forEach((skill) => {
+        skillName = highlightenKeyword(skill["name_" + lang], keyword);
+        skillRmk = highlightenKeyword(skill["rmk_" + lang], keyword);
+
+        table += "<tr>";
+        table += `<td style="padding-left: 1em;"><strong>${skillName}</strong> <br />`;
+        table += `${skillRmk}</td>`;
+        table += "</tr>";
+      });
+      table += "</tbody></table>";
+
+      html += table;
+    });
+    resultDiv.innerHTML = html;
+    hitNumSpan.innerHTML = kansens.length;
+  }
+}
+
+function filterkansens(battleLines, hullClasses, nations, rarities, keywords, kansens) {
+  const lang = document.getElementById("langSelect").value;
+
+  // Conditions
+  // Battle-Line { Main-Fleet, Vanguard, Submarine }
+  let selectedBattleLines = Array.from(document.querySelectorAll('input[name="battleLine"]:checked')).map((checkbox) =>
+    parseInt(checkbox.value)
+  );
+  // Battle-Line -> Hull-Class-Id
+  const hullClassesFromBattleLines = hullClasses
+    .find({ battle_line_id: { $in: selectedBattleLines } })
+    .map((hullClass) => hullClass.id);
+
+  // Hull-Classes { DD, LC, ..., }
+  const selectedHullClasses = Array.from(document.querySelectorAll('input[name="hullClass"]:checked')).map((checkbox) =>
+    parseInt(checkbox.value)
+  );
+
+  // Merge
+  const hullClassIds = Array.from(new Set([...hullClassesFromBattleLines, ...selectedHullClasses]));
+
+  // Nations { Union, Royal, Sakura, ... }
+  let selectedNations = Array.from(document.querySelectorAll('input[name="nation"]:checked')).map((checkbox) =>
+    parseInt(checkbox.value)
+  );
+
+  // Nations - collaborations
+  const collaboration_nation_id = document.getElementById("collaboration_nation_id").value;
+  if (collaboration_nation_id != "") {
+    selectedNations.push(parseInt(collaboration_nation_id));
+  }
+
+  // Rarities { N, ... UR }
+  let selectedRarities = Array.from(document.querySelectorAll('input[name="rarity"]:checked')).map((checkbox) =>
+    parseInt(checkbox.value)
+  );
+
+  // Implemented at
+  const implementedAt = document.getElementById("implementedAt").value;
+  const implementedAtEq = document.getElementById("implementedAtEq").value;
+
+  // Keywords
+  const keyword_id = document.getElementById("keyword_id").value;
+  let keyword = "";
+
+  // Retrofitted
+  const retrofitted = Array.from(document.querySelectorAll('input[name="retrofitted"]:checked')).map((checkbox) =>
+    parseInt(checkbox.value)
+  );
+
+  const conditions = {};
+  if (hullClassIds.length > 0) {
+    conditions.hull_class_id = { $in: hullClassIds };
+  }
+  if (selectedNations.length > 0) {
+    conditions.nation_id = { $in: selectedNations };
+  }
+  if (selectedRarities.length > 0) {
+    conditions.rarity_id = { $in: selectedRarities };
+  }
+  if (implementedAt != "") {
+    if (implementedAtEq == "=") {
+      conditions.implemented_at = { $between: [`${implementedAt}/01/01`, `${implementedAt}/12/31`] };
+    } else if (implementedAtEq == ">=") {
+      conditions.implemented_at = { $gte: `${implementedAt}/01/01` };
+    } else if (implementedAtEq == "<=") {
+      conditions.implemented_at = { $lte: `${implementedAt}/12/31` };
+    }
+  }
+  if (keyword_id != "") {
+    keyword = keywords.findOne({ id: keyword_id })["name_" + lang];
+    conditions.keyword_ids = { $contains: keyword_id };
+  }
+  if (retrofitted.length > 0) {
+    conditions.retrofitted_at = { $exists: true };
+  }
+
+  // Filter kansens
+  const resultkansens = kansens
+    .chain()
+    .find(conditions)
+    .compoundsort([
+      ["nation_id", false],
+      ["rarity_id", true],
+      ["hull_class_id", false],
+      ["implemented_at", true],
+    ])
+    .data();
+
+  // Display result
+  displayResult(resultkansens, hullClasses, nations, rarities, keyword);
+}
+
+// JSONファイルをfetchで読み込む
+Promise.all([
+  fetch("./resources.json").then((response) => response.json()),
+  fetch("./kansens.json").then((response) => response.json()),
+])
+  .then(([resources, kansensDat]) => {
+    const battleLines = db.addCollection("battle_lines");
+    battleLines.insert(resources.battle_lines);
+
+    const hullClasses = db.addCollection("hull_classes");
+    hullClasses.insert(resources.hull_classes);
+
+    const nations = db.addCollection("nations");
+    nations.insert(resources.nations);
+
+    const rarities = db.addCollection("rarities");
+    rarities.insert(resources.rarities);
+
+    const keywords = db.addCollection("keywords");
+    keywords.insert(resources.keywords);
+
+    const kansens = db.addCollection("kansens");
+    kansens.insert(kansensDat);
+
+    // Init Language
+    initializeLang();
+
+    const fnctInitializeConditions = () => {
+      container = document.getElementById("conditions");
+      container.innerHTML = "";
+      initializeConditions(battleLines.find(), hullClasses.find(), nations.find(), rarities.find(), keywords.find());
+    };
+
+    fnctInitializeConditions();
+
+    // 登録済の KANSEN 数
+    const listNumSpan = document.getElementById("listNum");
+    listNumSpan.innerHTML = kansens.find().length;
+
+    // Switch Language.
+    document.getElementById("langSelect").addEventListener("change", (event) => {
+      fnctInitializeConditions();
+      displayResult([]);
+    });
+
+    // Filter kansens.
+    document.getElementById("queryButton").addEventListener("click", () => {
+      filterkansens(battleLines, hullClasses, nations, rarities, keywords, kansens);
+    });
+
+    // Clear Conditions
+    document.getElementById("clearButton").addEventListener("click", () => {
+      fnctInitializeConditions();
+      displayResult([]);
+    });
+  })
+  .catch((error) => {
+    console.error("Error loading JSON data:", error);
+  });
